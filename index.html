@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>English Daily</title>
+  <meta name="description" content="Ứng dụng học tiếng Anh: từ vựng theo chủ đề, ôn tập ngắt quãng, nghe, nói và ngữ pháp.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">📘 English Daily</a>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <a href="#/" data-route="">Tổng quan</a>
+    <a href="#/flashcards" data-route="flashcards">Thẻ từ</a>
+    <a href="#/quiz" data-route="quiz">Trắc nghiệm</a>
+    <a href="#/listening" data-route="listening">Nghe – chép</a>
+    <a href="#/speaking" data-route="speaking">Luyện nói</a>
+    <a href="#/grammar" data-route="grammar">Ngữ pháp</a>
+  </nav>
+
+  <main id="app" class="container"></main>
+
+  <footer class="footer">Tiến độ được lưu trên trình duyệt của bạn (localStorage).</footer>
+
+  <script src="js/srs.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
