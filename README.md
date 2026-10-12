@@ -21,7 +21,7 @@ Phím tắt: `Space` lật thẻ, `1–4` chấm điểm thẻ / chọn đáp á
 
 - Cách nhanh nhất: mở trực tiếp `index.html` bằng trình duyệt.
 - Hoặc chạy server cục bộ (khuyến nghị cho tính năng micro): `npm start` rồi mở http://localhost:8080
-- Có thể đăng lên GitHub Pages / Cloudflare Pages vì toàn bộ là file tĩnh.
+- Bản trực tuyến: https://vvietchi.github.io/Dvs/ — tự triển khai qua GitHub Actions (`.github/workflows/pages.yml`) mỗi khi push.
 
 Tiến độ học được lưu trong `localStorage` của trình duyệt.
 
