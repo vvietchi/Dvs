@@ -13,7 +13,9 @@
 | **Luyện nói** | Đọc câu mẫu, nhận dạng giọng nói và chấm % độ khớp (Chrome/Edge) |
 | **Ngữ pháp** | 5 chủ điểm thông dụng trong công việc kèm bài tập |
 
-Chủ đề từ vựng: Giao tiếp hằng ngày · Công việc văn phòng · **Chuyển đổi số & CNTT** · Họp & thuyết trình · Du lịch (52 từ).
+Từ vựng (202 từ):
+- **Cơ bản** (52 từ): Giao tiếp hằng ngày · Công việc văn phòng · Chuyển đổi số & CNTT · Họp & thuyết trình · Du lịch
+- **TOEIC** (150 từ, `js/data-toeic.js`): Tuyển dụng & Nhân sự · Tài chính & Ngân hàng · Marketing & Bán hàng · Mua hàng & Vận chuyển · Sản xuất & Chất lượng · Hợp đồng & Pháp lý · Văn phòng & Thủ tục · Sự kiện & Nhà hàng · Nhà ở & Bất động sản · Tính từ & trạng từ hay thi. Có thể học/làm trắc nghiệm theo từng chủ đề hoặc toàn bộ TOEIC; trắc nghiệm có thêm dạng **điền vào chỗ trống** kiểu Part 5.
 
 Phím tắt: `Space` lật thẻ, `1–4` chấm điểm thẻ / chọn đáp án, `Enter` sang câu tiếp.
 
@@ -30,12 +32,13 @@ Tiến độ học được lưu trong `localStorage` của trình duyệt.
 ```
 index.html        Khung trang và thanh điều hướng
 css/style.css     Giao diện (hỗ trợ dark mode, mobile)
-js/data.js        Nội dung: từ vựng theo chủ đề, ngữ pháp, câu luyện nói
+js/data.js        Nội dung: từ vựng cơ bản, ngữ pháp, câu luyện nói
+js/data-toeic.js  Từ vựng TOEIC theo chủ đề
 js/srs.js         Thuật toán lặp lại ngắt quãng + so khớp chuỗi
 js/app.js         Các màn hình và router
-tests/            Unit test cho srs.js (`npm test`)
+tests/            Unit test cho srs.js và kiểm tra dữ liệu (`npm test`)
 ```
 
 ## Thêm nội dung
 
-Thêm từ vào `js/data.js` theo dạng `["english", "/ipa/", "nghĩa tiếng Việt", "Câu ví dụ."]`, hoặc thêm một chủ đề mới vào mảng `TOPICS`. Bài ngữ pháp thêm vào `GRAMMAR` với `quiz: [[câu hỏi, [đáp án...], chỉ số đáp án đúng]]`.
+Thêm từ vào `js/data.js` (hoặc `js/data-toeic.js`; với TOEIC câu ví dụ phải chứa đúng từ đó để tạo câu điền chỗ trống) theo dạng `["english", "/ipa/", "nghĩa tiếng Việt", "Câu ví dụ."]`, hoặc thêm một chủ đề mới vào mảng `TOPICS`. Bài ngữ pháp thêm vào `GRAMMAR` với `quiz: [[câu hỏi, [đáp án...], chỉ số đáp án đúng]]`.

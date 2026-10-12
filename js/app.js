@@ -8,7 +8,24 @@
   const ALL_WORDS = TOPICS.flatMap((t) =>
     t.words.map(([en, ipa, vi, ex]) => ({ en, ipa, vi, ex, topic: t.id }))
   );
-  const topicWords = (id) => (id ? ALL_WORDS.filter((w) => w.topic === id) : ALL_WORDS);
+  const groupOf = (t) => t.group || "Cơ bản";
+  const GROUPS = [...new Set(TOPICS.map(groupOf))];
+  /* id: a topic id, "toeic" for the whole TOEIC set, or ""/"all" for everything */
+  const topicWords = (id) => {
+    if (!id || id === "all") return ALL_WORDS;
+    if (id === "toeic") {
+      const ids = TOPICS.filter((t) => groupOf(t) === "TOEIC").map((t) => t.id);
+      return ALL_WORDS.filter((w) => ids.includes(w.topic));
+    }
+    return ALL_WORDS.filter((w) => w.topic === id);
+  };
+  const collectionName = (id) =>
+    id === "toeic" ? "🎯 Toàn bộ TOEIC" : (TOPICS.find((t) => t.id === id) || {}).name || "Tất cả chủ đề";
+  /* Example sentence with the headword blanked out, or null if it doesn't appear verbatim. */
+  const blankOut = (w) => {
+    const re = new RegExp("\\b" + w.en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+    return re.test(w.ex) ? w.ex.replace(re, "_____") : null;
+  };
   const shuffle = (arr) => {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -70,8 +87,8 @@
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   /* ---------- Views ---------- */
-  function topicCards(hrefBase) {
-    return TOPICS.map((t) => {
+  function topicCards(hrefBase, group) {
+    return TOPICS.filter((t) => groupOf(t) === group).map((t) => {
       const words = topicWords(t.id);
       const pct = Math.round((learnedCount(words) / words.length) * 100);
       return `<button class="topic" data-href="${hrefBase}/${t.id}">
@@ -80,6 +97,20 @@
         <div class="meta">${words.length} từ · đã thuộc ${learnedCount(words)} · đến hạn ${dueCount(words)}</div>
         <div class="bar"><span style="width:${pct}%"></span></div>
       </button>`;
+    }).join("");
+  }
+  function topicSections(hrefBase) {
+    return GROUPS.map((g) => {
+      const ids = TOPICS.filter((t) => groupOf(t) === g).map((t) => t.id);
+      const words = ALL_WORDS.filter((w) => ids.includes(w.topic));
+      return `<h2>${g === "TOEIC" ? "🎯 Từ vựng TOEIC" : "Chủ đề cơ bản"}
+          <span class="meta-inline">${words.length} từ · đã thuộc ${learnedCount(words)}</span></h2>
+        ${g === "TOEIC" ? `<p class="sub">Từ vựng theo các chủ đề hay ra trong đề TOEIC. Phần trắc nghiệm có thêm dạng điền vào chỗ trống giống Part 5.</p>
+          <div class="row" style="margin-bottom:12px">
+            <button class="btn small primary" data-href="#/flashcards/toeic">Học thẻ từ TOEIC</button>
+            <button class="btn small" data-href="#/quiz/toeic">Trắc nghiệm TOEIC</button>
+          </div>` : ""}
+        <div class="grid">${topicCards(hrefBase, g)}</div>`;
     }).join("");
   }
   function bindHrefs() {
@@ -104,8 +135,7 @@
         <button class="btn primary" data-href="#/flashcards/all">${due ? `Ôn ${due} từ đến hạn` : "Bắt đầu học từ mới"}</button>
         <button class="btn" data-href="#/quiz">Làm trắc nghiệm</button>
       </div>
-      <h2>Chủ đề từ vựng</h2>
-      <div class="grid">${topicCards("#/flashcards")}</div>`;
+      ${topicSections("#/flashcards")}`;
     bindHrefs();
   }
 
@@ -116,15 +146,16 @@
         <h1>Thẻ từ</h1>
         <p class="sub">Lật thẻ, tự đánh giá mức độ nhớ. Hệ thống tự lên lịch ôn lại theo phương pháp lặp lại ngắt quãng.</p>
         <div class="row" style="margin-bottom:16px"><button class="btn primary" data-href="#/flashcards/all">Học tất cả chủ đề</button></div>
-        <div class="grid">${topicCards("#/flashcards")}</div>`;
+        ${topicSections("#/flashcards")}`;
       return bindHrefs();
     }
 
-    const words = topicWords(topicId === "all" ? null : topicId);
+    const words = topicWords(topicId);
     const due = words.filter((w) => state.cards[w.en] && SRS.isDue(state.cards[w.en]));
     const fresh = words.filter((w) => !state.cards[w.en]).slice(0, NEW_PER_SESSION);
     const queue = [...shuffle(due), ...fresh];
     const topic = TOPICS.find((t) => t.id === topicId);
+    const title = topic ? topic.icon + " " + topic.name : collectionName(topicId);
     let done = 0;
     let flipped = false;
 
@@ -142,7 +173,7 @@
       const w = queue[0];
       const isNew = !state.cards[w.en];
       app.innerHTML = `
-        <div class="row"><h1>${topic ? topic.icon + " " + topic.name : "Tất cả chủ đề"}</h1><span class="spacer"></span>
+        <div class="row"><h1>${esc(title)}</h1><span class="spacer"></span>
           <span class="progress">Còn ${queue.length} thẻ${isNew ? " · từ mới" : ""}</span></div>
         <div class="card flash" id="flash">
           <div class="word">${esc(w.en)}</div>
@@ -190,17 +221,21 @@
 
   /* Multiple-choice quiz */
   function viewQuiz(topicId) {
-    const pool = topicWords(topicId || null);
+    const pool = topicWords(topicId);
     const questions = shuffle(pool).slice(0, 10).map((w) => {
-      const toVi = Math.random() < 0.5;
-      const others = shuffle(ALL_WORDS.filter((o) => o.en !== w.en)).slice(0, 3);
+      const blank = blankOut(w);
+      const modes = ["toVi", "toEn", ...(blank ? ["blank"] : [])];
+      const mode = modes[Math.floor(Math.random() * modes.length)];
+      // Distractors come from other topics so a blank never has two plausible answers.
+      const others = shuffle(ALL_WORDS.filter((o) => o.en !== w.en && (mode !== "blank" || o.topic !== w.topic))).slice(0, 3);
       const options = shuffle([w, ...others]);
       return {
-        prompt: toVi ? w.en : w.vi,
-        hint: toVi ? "Chọn nghĩa tiếng Việt đúng" : "Chọn từ tiếng Anh đúng",
-        options: options.map((o) => (toVi ? o.vi : o.en)),
+        prompt: mode === "toVi" ? w.en : mode === "toEn" ? w.vi : blank,
+        hint: { toVi: "Chọn nghĩa tiếng Việt đúng", toEn: "Chọn từ tiếng Anh đúng", blank: "Điền từ thích hợp vào chỗ trống" }[mode],
+        options: options.map((o) => (mode === "toVi" ? o.vi : o.en)),
         answer: options.indexOf(w),
         word: w,
+        canSpeak: mode !== "blank", // speaking the word would give the answer away
       };
     });
     let i = 0, score = 0, answered = false;
@@ -223,18 +258,20 @@
         <div class="row"><h1>Trắc nghiệm</h1><span class="spacer"></span>
           <select id="topicSel" class="btn small">
             <option value="">Tất cả chủ đề</option>
-            ${TOPICS.map((t) => `<option value="${t.id}" ${t.id === topicId ? "selected" : ""}>${t.name}</option>`).join("")}
+            <option value="toeic" ${topicId === "toeic" ? "selected" : ""}>🎯 Toàn bộ TOEIC</option>
+            ${GROUPS.map((g) => `<optgroup label="${g}">${TOPICS.filter((t) => groupOf(t) === g)
+              .map((t) => `<option value="${t.id}" ${t.id === topicId ? "selected" : ""}>${t.name}</option>`).join("")}</optgroup>`).join("")}
           </select></div>
         <div class="card">
           <div class="progress">Câu ${i + 1}/${questions.length} · Đúng ${score} · ${q.hint}</div>
-          <div class="question">${esc(q.prompt)} <button class="btn small" id="say">🔊</button></div>
+          <div class="question">${esc(q.prompt)} ${q.canSpeak ? `<button class="btn small" id="say">🔊</button>` : ""}</div>
           <div class="options">
             ${q.options.map((o, k) => `<button class="btn option" data-k="${k}">${k + 1}. ${esc(o)}</button>`).join("")}
           </div>
           <div id="fb"></div>
         </div>`;
       document.getElementById("topicSel").onchange = (e) => (location.hash = "#/quiz/" + e.target.value);
-      document.getElementById("say").onclick = () => speak(q.word.en);
+      if (q.canSpeak) document.getElementById("say").onclick = () => speak(q.word.en);
       app.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => choose(+b.dataset.k)));
       answered = false;
     }
@@ -249,6 +286,7 @@
       document.getElementById("fb").innerHTML = `
         <div class="feedback ${k === q.answer ? "ok" : "no"}">
           ${k === q.answer ? "Chính xác!" : "Chưa đúng."} <b>${esc(q.word.en)}</b> ${esc(q.word.ipa)} = ${esc(q.word.vi)}
+          ${q.canSpeak ? "" : `<div style="margin-top:4px"><i>${esc(q.word.ex)}</i></div>`}
           <div class="row" style="margin-top:8px"><button class="btn small primary" id="next">Câu tiếp (Enter)</button></div>
         </div>`;
       document.getElementById("next").onclick = next;
@@ -260,7 +298,7 @@
       else if (answered && e.key === "Enter") next();
     };
     render();
-    if (!topic && topicId) location.hash = "#/quiz";
+    if (!topic && topicId && topicId !== "toeic") location.hash = "#/quiz";
   }
 
   /* Listening / dictation */

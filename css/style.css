@@ -140,3 +140,5 @@ input[type=text] {
   .flash .word { font-size: 1.6rem; }
   .grades { grid-template-columns: repeat(2, 1fr); }
 }
+
+.meta-inline { font-size: .85rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
