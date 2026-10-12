@@ -10,6 +10,7 @@
 | **Thẻ từ** | Flashcard có phiên âm IPA, nghĩa, câu ví dụ, phát âm; tự đánh giá *Quên / Khó / Nhớ / Dễ*, hệ thống lên lịch ôn theo phương pháp **lặp lại ngắt quãng** (SM-2 rút gọn) |
 | **Trắc nghiệm** | 10 câu Anh ↔ Việt, chọn theo chủ đề |
 | **Nghe – chép** | Nghe từ/câu (có chế độ chậm) và gõ lại, chấm theo độ khớp |
+| **TOEIC nghe** | Part 1 – Mô tả tranh (12 tranh, 4 đáp án A–D) và Part 2 – Hỏi & Đáp (22 câu, 3 đáp án A–C). Đọc tự động lần lượt từng đáp án, tô sáng đáp án đang đọc, nghe lại/nghe chậm, bật/tắt lời thoại, giải thích bẫy và dịch nghĩa sau mỗi câu; thứ tự đáp án được trộn mỗi lượt |
 | **Luyện nói** | Đọc câu mẫu, nhận dạng giọng nói và chấm % độ khớp (Chrome/Edge) |
 | **Ngữ pháp** | 5 chủ điểm thông dụng trong công việc kèm bài tập |
 
@@ -17,7 +18,7 @@ Từ vựng (202 từ):
 - **Cơ bản** (52 từ): Giao tiếp hằng ngày · Công việc văn phòng · Chuyển đổi số & CNTT · Họp & thuyết trình · Du lịch
 - **TOEIC** (150 từ, `js/data-toeic.js`): Tuyển dụng & Nhân sự · Tài chính & Ngân hàng · Marketing & Bán hàng · Mua hàng & Vận chuyển · Sản xuất & Chất lượng · Hợp đồng & Pháp lý · Văn phòng & Thủ tục · Sự kiện & Nhà hàng · Nhà ở & Bất động sản · Tính từ & trạng từ hay thi. Có thể học/làm trắc nghiệm theo từng chủ đề hoặc toàn bộ TOEIC; trắc nghiệm có thêm dạng **điền vào chỗ trống** kiểu Part 5.
 
-Phím tắt: `Space` lật thẻ, `1–4` chấm điểm thẻ / chọn đáp án, `Enter` sang câu tiếp.
+Phím tắt: `Space` lật thẻ, `1–4` chấm điểm thẻ / chọn đáp án, `Enter` sang câu tiếp; ở TOEIC nghe có thể bấm `A–D` để chọn và `R` để nghe lại.
 
 ## Chạy
 
@@ -34,6 +35,7 @@ index.html        Khung trang và thanh điều hướng
 css/style.css     Giao diện (hỗ trợ dark mode, mobile)
 js/data.js        Nội dung: từ vựng cơ bản, ngữ pháp, câu luyện nói
 js/data-toeic.js  Từ vựng TOEIC theo chủ đề
+js/data-toeic-listening.js  Đề luyện nghe TOEIC Part 1, 2 và mẹo làm bài
 js/srs.js         Thuật toán lặp lại ngắt quãng + so khớp chuỗi
 js/app.js         Các màn hình và router
 tests/            Unit test cho srs.js và kiểm tra dữ liệu (`npm test`)

@@ -76,13 +76,42 @@
   /* ---------- Speech ---------- */
   function speak(text, rate = 0.9) {
     if (!("speechSynthesis" in window)) return;
-    speechSynthesis.cancel();
+    stopAudio();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
     u.rate = rate;
     const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith("en"));
     if (voice) u.voice = voice;
     speechSynthesis.speak(u);
+  }
+  let seqId = 0;
+  function stopAudio() {
+    seqId++; // invalidates any sequence still waiting to play its next line
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
+  const voiceFor = (lang) => {
+    const voices = speechSynthesis.getVoices();
+    return voices.find((v) => v.lang.replace("_", "-") === lang) || voices.find((v) => v.lang.startsWith("en"));
+  };
+  /* Speak lines one after another with a pause between; onLine(i) fires as line i starts, -1 when done. */
+  function playSequence(lines, { gap = 700, onLine } = {}) {
+    if (!("speechSynthesis" in window)) return;
+    stopAudio();
+    const id = seqId;
+    const step = (i) => {
+      if (id !== seqId) return;
+      if (i >= lines.length) return onLine && onLine(-1);
+      const { text, lang = "en-US", rate = 0.9 } = lines[i];
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang;
+      u.rate = rate;
+      const v = voiceFor(lang);
+      if (v) u.voice = v;
+      u.onstart = () => id === seqId && onLine && onLine(i);
+      u.onend = u.onerror = () => setTimeout(() => step(i + 1), gap);
+      speechSynthesis.speak(u);
+    };
+    step(0);
   }
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -109,6 +138,7 @@
           <div class="row" style="margin-bottom:12px">
             <button class="btn small primary" data-href="#/flashcards/toeic">Học thẻ từ TOEIC</button>
             <button class="btn small" data-href="#/quiz/toeic">Trắc nghiệm TOEIC</button>
+            <button class="btn small" data-href="#/toeic">🎧 Luyện nghe Part 1, 2</button>
           </div>` : ""}
         <div class="grid">${topicCards(hrefBase, g)}</div>`;
     }).join("");
@@ -470,14 +500,138 @@
     };
   }
 
+  /* TOEIC Listening: Part 1 (photographs) and Part 2 (question–response) */
+  function viewToeic(part) {
+    const { PART1, PART2, TIPS } = window.CONTENT.TOEIC_LISTENING;
+    const PARTS = {
+      part1: { title: "Part 1 – Mô tả tranh", desc: "Nhìn tranh, nghe 4 câu mô tả (A–D), chọn câu mô tả đúng nhất.", items: PART1, perSession: PART1.length, tips: TIPS.part1 },
+      part2: { title: "Part 2 – Hỏi & Đáp", desc: "Nghe một câu hỏi và 3 câu trả lời (A–C), chọn câu trả lời phù hợp nhất.", items: PART2, perSession: 10, tips: TIPS.part2 },
+    };
+    const best = state.toeic || {};
+    const cfg = PARTS[part];
+
+    if (!cfg) {
+      app.innerHTML = `
+        <h1>🎧 Luyện nghe TOEIC</h1>
+        <p class="sub">Mô phỏng phần nghe Part 1 và Part 2 của đề TOEIC. Âm thanh dùng giọng đọc của trình duyệt (giọng Mỹ cho câu hỏi, giọng Anh cho đáp án nếu máy có).</p>
+        <div class="grid">${Object.entries(PARTS).map(([id, p]) => `
+          <button class="topic" data-href="#/toeic/${id}">
+            <div class="icon">${id === "part1" ? "🖼️" : "💬"}</div>
+            <div class="name">${p.title}</div>
+            <div class="meta">${p.desc}</div>
+            <div class="meta" style="margin-top:6px">${p.perSession} câu/lượt${best[id] !== undefined ? ` · Tốt nhất: ${best[id]}/${p.perSession}` : ""}</div>
+          </button>`).join("")}
+        </div>
+        ${Object.values(PARTS).map((p) => `<h2>Mẹo ${p.title.split(" – ")[0]}</h2><ul>${p.tips.map((t) => `<li>${t}</li>`).join("")}</ul>`).join("")}`;
+      return bindHrefs();
+    }
+
+    const mine = ++viewSeq; // delayed play() calls from a previous session must not fire
+    const isP1 = part === "part1";
+    // Shuffle option order each session so the answer letter can't be memorized.
+    const items = shuffle(cfg.items).slice(0, cfg.perSession).map((q) => {
+      const order = shuffle(q.options.map((_, k) => k));
+      return { ...q, options: order.map((k) => q.options[k]), answer: order.indexOf(q.answer) };
+    });
+    const letters = "ABCD";
+    let i = 0, score = 0, answered = false, picked = -1;
+
+    const lines = (q, rate = 0.9) => [
+      ...(isP1 ? [] : [{ text: q.q, lang: "en-US", rate }]),
+      ...q.options.map((o, k) => ({ text: `${letters[k]}. ${o}`, lang: "en-GB", rate })),
+    ];
+    function play(rate) {
+      if (mine !== viewSeq || !items[i]) return;
+      const offset = isP1 ? 0 : 1;
+      playSequence(lines(items[i], rate), {
+        onLine: (n) => app.querySelectorAll("[data-k], #qtext").forEach((el) =>
+          el.classList.toggle("playing", el.id === "qtext" ? n === 0 && !isP1 : +el.dataset.k === n - offset)),
+      });
+    }
+
+    function render() {
+      if (i >= items.length) {
+        state.toeic = { ...best, [part]: Math.max(best[part] ?? 0, score) };
+        save();
+        app.innerHTML = `<div class="card empty">
+          <h2>${cfg.title}: ${score}/${items.length}</h2>
+          <p>${score / items.length >= 0.8 ? "Xuất sắc! 🎉" : score / items.length >= 0.5 ? "Khá tốt, luyện thêm nhé! 💪" : "Hãy xem lại mẹo và luyện lại nhé."}</p>
+          <div class="row" style="justify-content:center">
+            <button class="btn" id="again">Làm lại</button>
+            <button class="btn primary" data-href="#/toeic">Về trang luyện nghe</button>
+          </div></div>`;
+        document.getElementById("again").onclick = () => viewToeic(part);
+        return bindHrefs();
+      }
+      const q = items[i];
+      const show = answered || state.toeicShowText;
+      app.innerHTML = `
+        <div class="row"><h1>${cfg.title}</h1><span class="spacer"></span>
+          <label class="progress"><input type="checkbox" id="showText" ${state.toeicShowText ? "checked" : ""}> Hiện lời thoại</label></div>
+        <div class="card">
+          <div class="progress">Câu ${i + 1}/${items.length} · Đúng ${score} · ${cfg.desc}</div>
+          ${isP1
+            ? `<div class="scene" aria-label="Tranh minh họa"><div class="scene-main">${q.scene}</div><div class="scene-props">${q.props}</div></div>`
+            : `<div class="question" id="qtext">${show ? esc(q.q) : "🎧 Nghe câu hỏi…"}</div>`}
+          <div class="options">
+            ${q.options.map((o, k) => `<button class="btn option${answered && k === q.answer ? " correct" : ""}${answered && k === picked && k !== q.answer ? " wrong" : ""}" data-k="${k}">
+              <b>(${letters[k]})</b> ${show ? esc(o) : ""}</button>`).join("")}
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn small" id="replay">🔁 Nghe lại (R)</button>
+            <button class="btn small" id="slow">🐢 Nghe chậm</button>
+          </div>
+          ${answered ? `<div class="feedback ${picked === q.answer ? "ok" : "no"}">
+            ${picked === q.answer ? "Chính xác! ✅" : `Chưa đúng. Đáp án là (${letters[q.answer]}).`}
+            <div style="margin-top:4px">📝 ${esc(q.vi)}</div>
+            <div style="margin-top:4px">💡 ${esc(q.note)}</div>
+            <div class="row" style="margin-top:8px"><button class="btn small primary" id="next">Câu tiếp (Enter)</button></div>
+          </div>` : ""}
+        </div>`;
+      document.getElementById("showText").onchange = (e) => { state.toeicShowText = e.target.checked; save(); render(); };
+      document.getElementById("replay").onclick = () => play();
+      document.getElementById("slow").onclick = () => play(0.7);
+      app.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => choose(+b.dataset.k)));
+      const nextBtn = document.getElementById("next");
+      if (nextBtn) nextBtn.onclick = next;
+    }
+    function choose(k) {
+      if (answered) return;
+      stopAudio();
+      answered = true;
+      picked = k;
+      if (k === items[i].answer) { score++; addXp(3); }
+      render();
+    }
+    function next() {
+      i++;
+      answered = false;
+      picked = -1;
+      render();
+      setTimeout(() => play(), 400);
+    }
+    keyHandler = (e) => {
+      const k = "abcd".indexOf(e.key.toLowerCase());
+      const n = "1234".indexOf(e.key);
+      const idx = k >= 0 ? k : n;
+      if (!answered && idx >= 0 && idx < items[i]?.options.length) choose(idx);
+      else if (e.key.toLowerCase() === "r" && i < items.length) play();
+      else if (answered && e.key === "Enter") next();
+    };
+    render();
+    setTimeout(() => play(), 400);
+  }
+
   /* ---------- Router ---------- */
   let keyHandler = null;
+  let viewSeq = 0;
   document.addEventListener("keydown", (e) => {
     if (keyHandler && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLSelectElement)) keyHandler(e);
   });
 
   function route() {
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    stopAudio();
+    viewSeq++;
     keyHandler = null;
     const [name = "", arg] = location.hash.replace(/^#\/?/, "").split("/");
     document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("active", a.dataset.route === name));
@@ -488,6 +642,7 @@
       listening: viewListening,
       speaking: viewSpeaking,
       grammar: viewGrammar,
+      toeic: viewToeic,
     };
     (views[name] || viewHome)(arg);
     window.scrollTo(0, 0);
